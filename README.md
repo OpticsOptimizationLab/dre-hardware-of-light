@@ -12,7 +12,7 @@ All HLSL targets Shader Model 6.6. All implementations require Vol. 1 companion 
 
 ```hlsl
 // Include Vol. 1 first (physics & BRDF functions)
-#include "path/to/dre-physics-of-light/DRE_Vol1_Complete.hlsl"
+#include "deps/dre-physics-of-light/DRE_Vol1_Complete.hlsl"
 
 // Include Vol. 2 (GPU execution layer)
 #include "DRE_Vol2_Complete.hlsl"
@@ -91,6 +91,22 @@ validation/
 
 ---
 
+## Vol. 1 Dependency (Git Submodule)
+
+Vol. 1 companion code is included as a git submodule at `deps/dre-physics-of-light/`.
+
+Clone with submodule in one step:
+```bash
+git clone --recurse-submodules https://github.com/OpticsOptimizationLab/dre-hardware-of-light.git
+```
+
+Or initialize after cloning:
+```bash
+git submodule update --init --recursive
+```
+
+---
+
 ## Dependency: Vol. 1 Companion Code
 
 This repository extends Vol. 1. The following functions are called from Vol. 2 shaders
@@ -134,7 +150,7 @@ dxc -T cs_6_6 -E CS_TemporalAccumulate -Fo SVGF_Temporal.dxil hlsl/ch14_realtime
 dxc -T cs_6_6 -E CS_AtrousFilter -Fo SVGF_Atrous.dxil hlsl/ch14_realtime_pt/SVGF_Denoiser.hlsl
 
 # Or use the CMake build (Ch. 16.4)
-cmake -B build -DDRE_VOL1_PATH=../dre-physics-of-light
+cmake -B build -DDRE_VOL1_PATH=deps/dre-physics-of-light
 cmake --build build
 ```
 

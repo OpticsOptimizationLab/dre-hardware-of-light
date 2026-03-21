@@ -1,0 +1,3 @@
+[submodule "deps/dre-physics-of-light"]
+	path = deps/dre-physics-of-light
+	url = https://github.com/OpticsOptimizationLab/dre-physics-of-light.git
