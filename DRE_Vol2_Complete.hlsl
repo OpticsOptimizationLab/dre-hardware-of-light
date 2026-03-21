@@ -14,6 +14,9 @@
  *   § 4  DXR Ray Tracing Shaders             (Ch. 13)
  *   § 5  ReSTIR DI — Reservoir Sampling      (Ch. 14)
  *   § 6  SVGF Denoising                      (Ch. 14)
+ *   § 7  World Radiance Cache — Query        (Ch. 14)
+ *   § 8  NRC — Inference Entry Point         (Ch. 15)
+ *   § 9  3DGS — Projection Utilities         (Ch. 15)
  */
 
 #ifndef DRE_VOL2_COMPLETE_HLSL
@@ -144,5 +147,97 @@ float SVGF_EdgeWeight(float centerLum, float sampleLum, float variance,
 
 // B-spline kernel for 5x5 à-trous
 static const float DRE_ATROUS_KERNEL[3] = { 3.0f/8.0f, 1.0f/4.0f, 1.0f/16.0f };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 7  WORLD RADIANCE CACHE — QUERY ENTRY POINT  (Ch. 14.5)
+// Full implementation: hlsl/ch14_realtime_pt/WRC.hlsl
+// Include DRE_Vol2_Complete.hlsl + bind g_WRCGrid to call QueryWRC() inline.
+// ─────────────────────────────────────────────────────────────────────────────
+
+static const float WRC_CELL_SIZE   = 0.5f;
+static const uint  WRC_GRID_SIZE   = 1 << 18; // 262,144 cells
+static const float WRC_DECAY_RATE  = 0.02f;
+static const float WRC_BLEND_ALPHA = 0.05f;
+
+struct DRE_WRCCell
+{
+    float3 irradiance;
+    float3 dominantDir;
+    float  sampleCount;
+    float  lastUpdateFrame;
+};
+
+uint DRE_WRCHash(float3 worldPos)
+{
+    int3 cell = int3(floor(worldPos / WRC_CELL_SIZE));
+    uint h = (uint)cell.x * 73856093u ^ (uint)cell.y * 19349663u ^ (uint)cell.z * 83492791u;
+    return h % WRC_GRID_SIZE;
+}
+
+// Inline query: call from ClosestHit / PathTrace at bounce 2+.
+// Requires g_WRCGrid StructuredBuffer bound at caller's register.
+// float3 gi = DRE_QueryWRC(g_WRCGrid, worldPos, normal, frameIndex);
+float3 DRE_QueryWRC(StructuredBuffer<DRE_WRCCell> wrcGrid,
+                     float3 worldPos, float3 normal, uint frameIndex)
+{
+    uint        cellIndex = DRE_WRCHash(worldPos);
+    DRE_WRCCell cell      = wrcGrid[cellIndex];
+    if (cell.sampleCount < 4.0f) return float3(0, 0, 0);
+    float dirWeight = saturate(dot(normalize(cell.dominantDir), normal) * 0.5f + 0.5f);
+    float age       = (float)frameIndex - cell.lastUpdateFrame;
+    float freshness = exp(-age * WRC_DECAY_RATE);
+    return cell.irradiance * dirWeight * freshness;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 8  NRC INFERENCE ENTRY POINT  (Ch. 15.2)
+// Compact wrapper. Full hash grid + MLP: hlsl/ch15_neural/NRC_Query.hlsl
+// Binds NRC hash table + MLP weights from caller's registers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+static const uint DRE_NRC_HASH_LEVELS  = 16;
+static const uint DRE_NRC_FEAT_PER_LEV = 4;
+static const uint DRE_NRC_HASH_SIZE    = 1 << 19; // 512K
+
+// Returns NRC estimated incoming radiance at a surface point.
+// Requires: g_NRCHashTable (ByteAddressBuffer t30), g_MLPWeights (ByteAddressBuffer t31),
+//           g_SceneBoundsMin / g_SceneBoundsExtent in cbuffer.
+// See hlsl/ch15_neural/NRC_Query.hlsl for the full NRC_Infer() implementation.
+// This entry point is a declaration stub for assembly-file inclusion.
+// float3 indirectGI = NRC_Infer(worldPos, normal, viewDir, roughness);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 9  3DGS UTILITIES  (Ch. 15.1 — 3D Gaussian Splatting)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Production runtime Gaussian (58 bytes, order-1 SH).
+struct DRE_Gaussian3D
+{
+    float16_t3 position;
+    float16_t4 rotation;   // Unit quaternion
+    float16_t3 scale;      // Log-scale
+    float16_t  opacity;
+    uint       shCoeffs[9]; // 18 × float16 SH order-1
+};
+
+// Quaternion → 3×3 rotation matrix (used in projection).
+float3x3 DRE_QuatToMatrix(float4 q)
+{
+    float x = q.x, y = q.y, z = q.z, w = q.w;
+    return float3x3(
+        1-2*(y*y+z*z),   2*(x*y-w*z),   2*(x*z+w*y),
+          2*(x*y+w*z), 1-2*(x*x+z*z),   2*(y*z-w*x),
+          2*(x*z-w*y),   2*(y*z+w*x), 1-2*(x*x+y*y)
+    );
+}
+
+// Henyey-Greenstein phase function (also used by VolumeMarcher.hlsl).
+float DRE_PhaseHenyeyGreenstein(float cosTheta, float g)
+{
+    static const float PI = 3.14159265f;
+    float g2    = g * g;
+    float denom = 1.0f + g2 - 2.0f * g * cosTheta;
+    return (1.0f - g2) / (4.0f * PI * pow(max(denom, 1e-6f), 1.5f));
+}
 
 #endif // DRE_VOL2_COMPLETE_HLSL

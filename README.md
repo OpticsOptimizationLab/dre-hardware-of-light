@@ -34,28 +34,59 @@ float w = SVGF_EdgeWeight(lumC, lumS, variance, nDot, depthRatio, 10.0f, 128.0f,
 ## Repository Structure
 
 ```
-DRE_Vol2_Complete.hlsl              <- Single assembly file — copy this into your project
+DRE_Vol2_Complete.hlsl              <- Single assembly file (Ch. 11–15 utilities)
                                        Requires: DRE_Vol1_Complete.hlsl
 
 hlsl/
 ├── ch11_gpu_architecture/
-│   ├── DiagnoseDivergence.hlsl     <- Wave divergence measurement compute shader
-│   └── OccupancyEstimator.hlsl     <- Ampere/RDNA 3 occupancy constants & formula
+│   ├── DiagnoseDivergence.hlsl     <- Wave divergence measurement (WaveActiveBallot)
+│   ├── OccupancyEstimator.hlsl     <- Ampere/RDNA 3 occupancy formula + register budget
+│   └── CoalescingTest.hlsl         <- 128-byte cache line contract + shared memory demo
 │
 ├── ch12_dx12_pipeline/
-│   └── RenderGraph.hlsl            <- Frame resource declarations, fullscreen VS
+│   ├── RenderGraph.hlsl            <- Frame resource declarations, fullscreen VS
+│   ├── BindlessRT.hlsl             <- SM 6.6 bindless ClosestHit (ResourceDescriptorHeap)
+│   └── GBuffer.hlsl                <- G-Buffer layout constants + SurfaceHit unpack
 │
 ├── ch13_ray_tracing/
 │   ├── DRE_RayGen.hlsl             <- Ray generation shader — dispatches PathTrace()
 │   ├── DRE_ClosestHit.hlsl         <- Closest-hit material shader
-│   └── DRE_Miss.hlsl               <- Miss shader — environment + shadow
+│   ├── DRE_Miss.hlsl               <- Miss shader — environment + shadow
+│   └── InlineRayTracing.hlsl       <- RayQuery shadow + AO compute (no RTPSO needed)
 │
 ├── ch14_realtime_pt/
-│   ├── ReSTIR_DI.hlsl              <- ReSTIR DI: initial candidates + temporal reuse
-│   └── SVGF_Denoiser.hlsl          <- SVGF: temporal accumulation + a-trous filter
+│   ├── ReSTIR_DI.hlsl              <- ReSTIR DI: 3-pass (initial + temporal + spatial)
+│   ├── ReSTIR_GI.hlsl              <- ReSTIR GI: 1-bounce indirect + temporal reuse
+│   ├── SVGF_Denoiser.hlsl          <- SVGF: temporal accumulation + à-trous filter
+│   ├── WRC.hlsl                    <- World Radiance Cache: hash grid update + query
+│   ├── VolumeMarcher.hlsl          <- Beer-Lambert marcher + adaptive step + NanoVDB
+│   └── Transparency.hlsl           <- Alpha test, glass/refraction, stochastic alpha
 │
 └── ch15_neural/
-    (Neural Radiance Cache + SER workbenches — coming with repo update)
+    ├── GaussianSplatting.hlsl      <- 3DGS projection + tile classification + rasterizer
+    ├── GaussianSorting.hlsl        <- GPU radix sort for Gaussian depth ordering
+    ├── NRC_Query.hlsl              <- NRC inference: hash grid encoding + MLP forward
+    ├── SER.hlsl                    <- Shader Execution Reordering (Ada) + WaveMatch fallback
+    └── WorkGraph_AdaptivePT.hlsl   <- Work Graph adaptive SPP + ExecuteIndirect fallback
+
+cpp/
+├── ch12_dx12_pipeline/
+│   ├── DX12CommandQueue.cpp        <- 3-queue setup + N=3 frames-in-flight fence pattern
+│   ├── DX12ResourceManager.cpp     <- Heap types, committed resources, VRAM budget ref
+│   ├── DX12DescriptorManager.cpp   <- Bindless heap + root signature (65536-slot heap)
+│   └── ShaderCompiler.cpp          <- DXC runtime compile + PSO cache + hot reload
+│
+└── ch13_ray_tracing/
+    ├── AccelerationStructureManager.cpp  <- BLAS build/refit + TLAS build per frame
+    ├── RTPipelineState.cpp               <- RTPSO: subobjects, hit groups, payload config
+    └── ShaderBindingTable.cpp            <- SBT builder for N materials × R ray types
+
+python/
+└── ch15_neural/
+    └── NRC_Training.py             <- PyTorch NRC prototype (offline param exploration)
+
+validation/
+└── white_furnace_dxr.py            <- DXR pipeline White Furnace Test (45 configs)
 ```
 
 ---
