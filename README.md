@@ -1,6 +1,12 @@
 # Digital Rendering Engineering: The Hardware of Light
 ## Companion Code — Validated HLSL Implementations
 
+[![Code Verified](https://img.shields.io/badge/Code-Verified%20%E2%9C%93-brightgreen?style=flat-square)](VALIDATION_SUMMARY.md)
+[![Vol. 1 Tests](https://img.shields.io/badge/Vol.%201%20Tests-18%2F18%20Passed-success?style=flat-square)](deps/dre-physics-of-light/tests/)
+[![Shader Model](https://img.shields.io/badge/Shader%20Model-6.6-blue?style=flat-square)](#)
+[![DXR](https://img.shields.io/badge/DXR-1.1-blue?style=flat-square)](#)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
+
 **github.com/OpticsOptimizationLab/dre-hardware-of-light**
 
 Companion repository for **Digital Rendering Engineering: The Hardware of Light** (Vol. 2) by JM Sage.
