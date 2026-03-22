@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as below."
+title: "Digital Rendering Engineering: The Hardware of Light - Companion Code"
+authors:
+  - family-names: "Sage"
+    given-names: "JM"
+    affiliation: "Optics Optimization Laboratory"
+repository-code: "https://github.com/OpticsOptimizationLab/dre-hardware-of-light"
+url: "https://github.com/OpticsOptimizationLab"
+abstract: "Companion code for Digital Rendering Engineering: The Hardware of Light (Volume 2). Includes validated HLSL implementations of DirectX Raytracing (DXR) pipeline, ReSTIR DI/GI, SVGF denoising, Gaussian Splatting, Neural Radiance Cache, and GPU architecture optimizations. Requires Volume 1 companion code."
+keywords:
+  - DirectX-Raytracing
+  - DXR
+  - real-time-path-tracing
+  - ReSTIR
+  - SVGF
+  - denoising
+  - GPU-architecture
+  - HLSL
+  - Shader-Model-6.6
+  - ray-tracing
+  - acceleration-structures
+  - BVH
+  - render-graph
+  - bindless-descriptors
+  - Gaussian-Splatting
+  - Neural-Radiance-Cache
+license: MIT
+version: 2.0.0
+date-released: 2026-03-22
