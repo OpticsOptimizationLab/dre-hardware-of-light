@@ -60,7 +60,8 @@ hlsl/
 │   ├── SVGF_Denoiser.hlsl          <- SVGF: temporal accumulation + à-trous filter
 │   ├── WRC.hlsl                    <- World Radiance Cache: hash grid update + query
 │   ├── VolumeMarcher.hlsl          <- Beer-Lambert marcher + adaptive step + NanoVDB
-│   └── Transparency.hlsl           <- Alpha test, glass/refraction, stochastic alpha
+│   ├── Transparency.hlsl           <- Alpha test, glass/refraction, stochastic alpha
+│   └── DLSS_RR_Integration.cpp     <- NGX init + DLSS RR feature + evaluation + checklist
 │
 └── ch15_neural/
     ├── GaussianSplatting.hlsl      <- 3DGS projection + tile classification + rasterizer

@@ -1,61 +1,53 @@
-/**
- * DRE_RayGen.hlsl
- * DRE Vol. 2 — Chapter 13.5: PathTrace() Integration
- *
- * Ray generation shader. Dispatches PathTrace() for every pixel.
- * This is the DXR shader that makes Vol. 1 Ch. 7.4.1 execute.
- *
- * Requires:
- *   DRE_Vol1_Complete.hlsl (from dre-physics-of-light repo)
- *   DRE_TLAS bound as SRV at t0
- *   g_OutputUAV bound as UAV at u0
- */
+// DRE_Vol2_RT.hlsl, The ray generation shader.
+// This file includes DRE_Vol1_Complete.hlsl from the Volume 1 companion repository.
+// All BRDF functions, importance sampling, MIS, and Russian Roulette are inherited.
 
-#include "DRE_Vol1_Complete.hlsl"
+#include "dre-physics-of-light/DRE_Vol1_Complete.hlsl"
 
+// Constants.
+static const uint NUM_RAY_TYPES = 2; // Primary + Shadow.
+
+// Global resources, bound via the global root signature.
 RaytracingAccelerationStructure g_TLAS        : register(t0);
-RWTexture2D<float4>              g_OutputUAV   : register(u0);
+RWTexture2D<float4>             g_Output      : register(u0);
+Texture2D<float4>               g_GBufferA    : register(t1); // WorldPos.xyz + roughness
+Texture2D<float4>               g_GBufferB    : register(t2); // Normal.xyz + metallic
+Texture2D<float4>               g_GBufferC    : register(t3); // Albedo.rgb + AO
+Texture2D<float2>               g_Velocity    : register(t4); // Motion vectors
+StructuredBuffer<Material>      g_Materials   : register(t5);
+ConstantBuffer<CameraData>      g_Camera      : register(b0);
+ConstantBuffer<FrameData>       g_Frame       : register(b1);
 
-cbuffer FrameConstants : register(b0)
-{
-    float4x4 g_InvViewProj;
-    float3   g_CameraPos;
-    uint     g_FrameIndex;
-    uint     g_SamplesPerPixel;
-    uint     g_MaxBounces;
-    float2   _pad;
-};
+// Per-pixel surface data buffer, written by ClosestHit, read by RayGen.
+// This is NOT in the payload. Surface data goes to global memory (§ 13.3.2).
+RWStructuredBuffer<SurfaceHit>  g_SurfaceHits : register(u1);
 
 [shader("raygeneration")]
-void RayGen()
+void RayGenShader()
 {
-    uint2 launchIndex = DispatchRaysIndex().xy;
-    uint2 launchDim   = DispatchRaysDimensions().xy;
+    uint2 pixel = DispatchRaysIndex().xy;
+    uint2 dims  = DispatchRaysDimensions().xy;
 
-    // Reconstruct world-space ray from pixel position
-    float2 uv  = (launchIndex + 0.5f) / float2(launchDim);
+    // Initialize per-pixel RNG. Seed from pixel coordinate + frame index.
+    uint seed = InitRNG(pixel, g_Frame.frameIndex);
+
+    // Construct primary ray from camera.
+    float2 uv = (float2(pixel) + 0.5f) / float2(dims);
     float2 ndc = uv * 2.0f - 1.0f;
-    ndc.y      = -ndc.y;
+    ndc.y = -ndc.y; // Flip Y for DX convention.
 
-    float4 worldTarget = mul(g_InvViewProj, float4(ndc, 1.0f, 1.0f));
-    worldTarget.xyz   /= worldTarget.w;
+    float3 origin    = g_Camera.position;
+    float3 direction = normalize(
+        g_Camera.forward
+        + ndc.x * g_Camera.right * g_Camera.tanHalfFovX
+        + ndc.y * g_Camera.up    * g_Camera.tanHalfFovY
+    );
 
-    float3 rayOrigin = g_CameraPos;
-    float3 rayDir    = normalize(worldTarget.xyz - rayOrigin);
+    // PathTrace() from Volume 1, Chapter 7.4.1.
+    // The function is unchanged. TraceRay() and TraceShadowRay()
+    // are now resolved, they call the DXR intrinsics below.
+    float3 radiance = PathTrace(origin, direction, seed);
 
-    // Initialize per-pixel RNG (PCG hash of pixel + frame)
-    uint seed = launchIndex.x + launchIndex.y * launchDim.x + g_FrameIndex * launchDim.x * launchDim.y;
-
-    // Accumulate samples
-    float3 radiance = 0.0f;
-    for (uint s = 0; s < g_SamplesPerPixel; ++s)
-    {
-        radiance += PathTrace(g_TLAS, rayOrigin, rayDir, g_MaxBounces, seed + s);
-    }
-    radiance /= (float)g_SamplesPerPixel;
-
-    // Temporal blend with previous frame
-    float3 prev = g_OutputUAV[launchIndex].rgb;
-    float  alpha = (g_FrameIndex == 0) ? 1.0f : 0.05f;  // α=0.05 = 95% history
-    g_OutputUAV[launchIndex] = float4(lerp(prev, radiance, alpha), 1.0f);
+    // Write to output UAV.
+    g_Output[pixel] = float4(radiance, 1.0f);
 }
